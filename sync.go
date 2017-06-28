@@ -6,16 +6,11 @@ import (
 	"time"
 )
 
-type Mutex struct {
-	mu     sync.RWMutex
-	locked int32
-}
-
-// LockGuard can be used to automatically unlock when a
-// function returns; a litle like C++ STL's lock_guard,
-// though needs to be used differently:
+// ScopedLock can be used to automatically unlock when a function returns; a
+// litle like C++ STL's scoped_lock, though needs to be used 'defer'-rently:
+//
 // func foo(lock sync.Locker) {
-//    defer LockGuard(lock)()
+//    defer ScopedLock(lock)()
 //    /* critical section with 'mu' held */
 // }
 //
@@ -26,6 +21,11 @@ func LockGuard(m sync.Locker) func() {
 	return func() {
 		m.Unlock()
 	}
+}
+
+type Mutex struct {
+	mu     sync.RWMutex
+	locked int32
 }
 
 func (m *Mutex) Lock() {
@@ -131,7 +131,7 @@ func (m *RWMutex) TryRLock() bool {
 
 	l := atomic.LoadInt32(&m.locked)
 
-	for i := 0; l >= 0 && i < 8; i++ {
+	for i := 0; l >= 0 && i < 16; i++ {
 
 		if atomic.CompareAndSwapInt32(&m.locked, l, l+1) {
 			break
